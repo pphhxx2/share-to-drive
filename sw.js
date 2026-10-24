@@ -4,7 +4,7 @@
  */
 'use strict';
 
-var CACHE = 'share-to-drive-v2';
+var CACHE = 'share-to-drive-v3';
 var SHELL = ['./', './index.html', './app.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 var DB_NAME = 'share-to-drive';
 var DB_STORE = 'queue';
@@ -45,7 +45,9 @@ function newId() { return Date.now().toString(36) + '-' + (seq++).toString(36) +
 function itemsFromFormData(fd, now) {
   now = now || new Date();
   var items = [];
-  var files = fd.getAll('files') || [];
+  // 先取 'files' 欄位；若沒有，掃描所有欄位中的檔案（不同 App 傳法不一）
+  var files = (fd.getAll('files') || []).filter(function (f) { return f && typeof f !== 'string'; });
+  if (!files.length && typeof fd.forEach === 'function') fd.forEach(function (v) { if (v && typeof v !== 'string') files.push(v); });
   files.forEach(function (f, i) {
     if (!f || typeof f === 'string') return;
     if (!f.size && !f.name) return;
@@ -80,7 +82,10 @@ function handleShare(request, store) {
   store = store || idbPutAll;
   return request.formData().then(function (fd) {
     var items = itemsFromFormData(fd);
-    return store(items).then(function () { return items.length; });
+    return store(items).then(function () {
+      if (self.clients && self.clients.matchAll) self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (cs) { cs.forEach(function (c) { c.postMessage({ type: 'shared', n: items.length }); }); });
+      return items.length;
+    });
   }).then(function (n) {
     return Response.redirect('./?shared=1&n=' + n, 303);
   }).catch(function (err) {

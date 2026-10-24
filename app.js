@@ -103,14 +103,14 @@
     pg.classList.toggle('hidden', it.status === 'done' || it.status === 'error');
     $('progressCard').classList.remove('hidden');
   }
-  var doneThisRun = 0;
+  var doneThisRun = 0, shareNote = '';
   function summarize(items) {
     var err = items.filter(function (i) { return i.status === 'error'; }).length;
     var pend = items.filter(function (i) { return i.status === 'pending' || i.status === 'uploading'; }).length;
     var s = $('summary');
     if (pend) s.textContent = '上傳中…（剩 ' + pend + ' 個）';
     else if (err) s.textContent = '已上傳 ' + doneThisRun + ' 個檔案到「傳檔」，' + err + ' 個失敗';
-    else s.textContent = '已上傳 ' + doneThisRun + ' 個檔案到「傳檔」';
+    else s.textContent = (!doneThisRun && shareNote) ? shareNote : '已上傳 ' + doneThisRun + ' 個檔案到「傳檔」';
     s.style.color = (!pend && err) ? 'var(--err)' : (!pend ? 'var(--ok)' : '');
     $('btnRetry').classList.toggle('hidden', !!pend || !err);
     $('btnClear').classList.toggle('hidden', !!pend);
@@ -206,7 +206,15 @@
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function (e) { console.warn('SW 註冊失敗', e); });
   var qs = new URLSearchParams(location.search);
   if (qs.get('error')) { $('progressCard').classList.remove('hidden'); $('summary').textContent = '接收分享失敗：' + qs.get('error'); }
+  if (qs.has('shared') && !qs.get('error')) {
+    var n = parseInt(qs.get('n') || '0', 10);
+    $('progressCard').classList.remove('hidden');
+    if (n === 0) shareNote = '沒有收到檔案（分享的 App 沒有把檔案傳過來）';
+    $('summary').textContent = n > 0 ? '收到 ' + n + ' 個分享的檔案，準備上傳…' : shareNote;
+  }
   if (qs.has('shared')) history.replaceState(null, '', location.pathname); // 清掉網址參數，避免重新整理重複處理
+  if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', function (e) { if (e.data && e.data.type === 'shared') processQueue(); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') processQueue(); });
   if (!cfg().url || !cfg().key) showSettings(true);
   processQueue();
 })();
