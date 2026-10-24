@@ -4,7 +4,7 @@
  */
 'use strict';
 
-var CACHE = 'share-to-drive-v3';
+var CACHE = 'share-to-drive-v4';
 var SHELL = ['./', './index.html', './app.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 var DB_NAME = 'share-to-drive';
 var DB_STORE = 'queue';
@@ -82,7 +82,11 @@ function handleShare(request, store) {
   store = store || idbPutAll;
   return request.formData().then(function (fd) {
     var items = itemsFromFormData(fd);
-    return store(items).then(function () {
+    // 先把檔案內容讀進記憶體再存，避免部分手機無法把分享來的檔案直接存進 IndexedDB
+    return Promise.all(items.map(function (it) {
+      if (!it.blob || typeof it.blob.arrayBuffer !== 'function') return it;
+      return it.blob.arrayBuffer().then(function (buf) { it.blob = new Blob([buf], { type: it.type }); it.size = buf.byteLength; return it; });
+    })).then(function () { return store(items); }).then(function () {
       if (self.clients && self.clients.matchAll) self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (cs) { cs.forEach(function (c) { c.postMessage({ type: 'shared', n: items.length }); }); });
       return items.length;
     });

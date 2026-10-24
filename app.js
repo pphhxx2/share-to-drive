@@ -205,11 +205,11 @@
   // ---------- 啟動 ----------
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function (e) { console.warn('SW 註冊失敗', e); });
   var qs = new URLSearchParams(location.search);
-  if (qs.get('error')) { $('progressCard').classList.remove('hidden'); $('summary').textContent = '接收分享失敗：' + qs.get('error'); }
+  if (qs.get('error')) { shareNote = '接收分享失敗：' + qs.get('error'); $('progressCard').classList.remove('hidden'); $('summary').textContent = shareNote; }
   if (qs.has('shared') && !qs.get('error')) {
     var n = parseInt(qs.get('n') || '0', 10);
     $('progressCard').classList.remove('hidden');
-    if (n === 0) shareNote = '沒有收到檔案（分享的 App 沒有把檔案傳過來）';
+    shareNote = n === 0 ? '沒有收到檔案（分享的 App 沒有把檔案傳過來）' : '收到 ' + n + ' 個檔案，但讀取佇列時找不到（請截圖回報）';
     $('summary').textContent = n > 0 ? '收到 ' + n + ' 個分享的檔案，準備上傳…' : shareNote;
   }
   if (qs.has('shared')) history.replaceState(null, '', location.pathname); // 清掉網址參數，避免重新整理重複處理
