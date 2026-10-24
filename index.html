@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a73e8">
+<title>傳檔到雲端硬碟</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="傳檔">
+<style>
+  :root { --blue:#1a73e8; --bg:#f3f6fb; --card:#fff; --text:#1f2937; --muted:#6b7280; --ok:#188038; --err:#d93025; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif; background:var(--bg); color:var(--text); font-size:17px; line-height:1.5; }
+  header { background:var(--blue); color:#fff; padding:16px 18px; padding-top:calc(16px + env(safe-area-inset-top)); display:flex; align-items:center; gap:10px; }
+  header h1 { font-size:20px; margin:0; flex:1; }
+  header button { background:rgba(255,255,255,.18); color:#fff; border:0; border-radius:10px; padding:8px 12px; font-size:16px; }
+  main { max-width:640px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  h2 { font-size:18px; margin:0 0 12px; }
+  label { display:block; font-weight:600; margin:12px 0 6px; }
+  input[type=text], input[type=url], input[type=password] { width:100%; font-size:16px; padding:12px; border:1px solid #cbd5e1; border-radius:10px; }
+  .btn { display:block; width:100%; font-size:18px; font-weight:600; padding:16px; border:0; border-radius:14px; background:var(--blue); color:#fff; margin-top:12px; cursor:pointer; text-align:center; text-decoration:none; }
+  .btn.secondary { background:#e8f0fe; color:var(--blue); }
+  .btn:disabled { opacity:.5; }
+  .row { display:flex; gap:10px; } .row .btn { flex:1; }
+  .hint { color:var(--muted); font-size:14px; margin:6px 0 0; }
+  .msg { margin-top:10px; font-weight:600; } .msg.ok { color:var(--ok); } .msg.err { color:var(--err); }
+  #drop { border:2px dashed #93b4f0; border-radius:16px; padding:26px 12px; text-align:center; color:var(--muted); }
+  #drop.over { background:#e8f0fe; border-color:var(--blue); }
+  ul#list { list-style:none; padding:0; margin:0; }
+  #list li { padding:10px 0; border-bottom:1px solid #eef2f7; }
+  #list li:last-child { border-bottom:0; }
+  .fname { display:flex; justify-content:space-between; gap:8px; word-break:break-all; }
+  .fstat { white-space:nowrap; font-weight:600; }
+  .fsub { font-size:13px; color:var(--muted); }
+  progress { width:100%; height:8px; margin-top:6px; accent-color:var(--blue); }
+  #summary { font-size:18px; font-weight:700; }
+  .check { display:flex; gap:10px; align-items:flex-start; font-weight:normal; }
+  .check input { width:22px; height:22px; margin-top:2px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>☁️ 傳檔到雲端硬碟</h1>
+  <button id="btnSettings" type="button">⚙️ 設定</button>
+</header>
+<main>
+  <section id="settings" class="card hidden">
+    <h2>設定</h2>
+    <p class="hint">請貼上 Apps Script「網頁應用程式網址」與金鑰（詳見安裝說明）。只會存在這台裝置上。</p>
+    <label for="inUrl">網頁應用程式網址</label>
+    <input id="inUrl" type="url" placeholder="https://script.google.com/macros/s/……/exec" autocomplete="off">
+    <label for="inKey">金鑰</label>
+    <input id="inKey" type="password" placeholder="貼上 setup() 產生的金鑰" autocomplete="off">
+    <label class="check"><input id="inShowKey" type="checkbox"> 顯示金鑰</label>
+    <label class="check"><input id="inCompress" type="checkbox"> 上傳前壓縮照片（長邊 2560 像素、JPEG）。預設不壓縮，保留原始畫質。</label>
+    <div class="row">
+      <button id="btnTest" class="btn secondary" type="button">測試連線</button>
+      <button id="btnSave" class="btn" type="button">儲存</button>
+    </div>
+    <div id="settingsMsg" class="msg"></div>
+  </section>
+
+  <section id="uploader" class="card">
+    <h2>上傳檔案</h2>
+    <div id="drop">
+      <div style="font-size:40px">📤</div>
+      <div>把檔案拖曳到這裡，或按下方按鈕選擇</div>
+    </div>
+    <input id="picker" type="file" multiple class="hidden">
+    <button id="btnPick" class="btn" type="button">選擇檔案上傳</button>
+    <p class="hint">在 Android 手機上，也可以在相簿等 App 按「分享」→ 選「傳檔」，會自動上傳到雲端硬碟的「傳檔」資料夾。</p>
+  </section>
+
+  <section id="progressCard" class="card hidden">
+    <div id="summary"></div>
+    <ul id="list"></ul>
+    <button id="btnRetry" class="btn secondary hidden" type="button">🔄 重試失敗的檔案</button>
+    <a id="lnkFolder" class="btn hidden" target="_blank" rel="noopener">📁 開啟「傳檔」資料夾</a>
+    <button id="btnClear" class="btn secondary hidden" type="button">清除清單</button>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
