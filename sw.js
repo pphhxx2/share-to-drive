@@ -4,7 +4,7 @@
  */
 'use strict';
 
-var CACHE = 'share-to-drive-v1';
+var CACHE = 'share-to-drive-v2';
 var SHELL = ['./', './index.html', './app.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 var DB_NAME = 'share-to-drive';
 var DB_STORE = 'queue';

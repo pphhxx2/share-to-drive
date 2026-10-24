@@ -46,13 +46,16 @@
       xhr.open('POST', url);
       xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8'); // 簡單請求，不觸發 CORS 預檢
       xhr.timeout = 6 * 60 * 1000;
-      if (onProgress && xhr.upload) xhr.upload.onprogress = function (e) { if (e.lengthComputable) onProgress(e.loaded / e.total); };
-      xhr.onload = function () {
+      // 注意：不可掛 xhr.upload 事件，否則瀏覽器會改送 CORS 預檢（OPTIONS），Apps Script 不支援而導致「網路錯誤」。
+      var fake = 0, timer = null;
+      if (onProgress) timer = setInterval(function () { fake += (0.9 - fake) * 0.15; onProgress(fake); }, 300);
+      var stop = function () { if (timer) clearInterval(timer); };
+      xhr.onload = function () { stop();
         var res; try { res = JSON.parse(xhr.responseText); } catch (e) { return reject(new Error('伺服器回應無法解析（HTTP ' + xhr.status + '），請確認網址與部署權限設為「所有人」')); }
         if (res && res.ok) resolve(res); else reject(new Error((res && res.error) || '上傳失敗'));
       };
-      xhr.onerror = function () { reject(new Error('網路錯誤，或網址／部署權限不正確')); };
-      xhr.ontimeout = function () { reject(new Error('連線逾時')); };
+      xhr.onerror = function () { stop(); reject(new Error('網路錯誤，或網址／部署權限不正確')); };
+      xhr.ontimeout = function () { stop(); reject(new Error('連線逾時')); };
       xhr.send(JSON.stringify(payload));
     });
   }
